@@ -6,3 +6,5 @@ venv/
 *.jpg
 *.png
 *.jpeg
+.coverage
+htmlcov/
