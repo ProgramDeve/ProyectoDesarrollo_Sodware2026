@@ -251,7 +251,7 @@
     </div>
 
     <!-- ESTADOS -->
-    <div id="loading">⏳ Analizando ofertas en 5 tiendas. Por favor espera...</div>
+    <div id="loading">⏳ Analizando ofertas en 6 tiendas. Por favor espera...</div>
     <div id="error"></div>
 
     <!-- RESULTADOS Y RECOMENDACIÓN -->
