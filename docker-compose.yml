@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: visionprice-python
+    ports:
+      - "5000:5000"
+    networks:
+      - visionprice-net
+
+  php-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: visionprice-php
+    ports:
+      - "8080:80"
+    depends_on:
+      - python-api
+    networks:
+      - visionprice-net
+
+networks:
+  visionprice-net:
+    driver: bridge

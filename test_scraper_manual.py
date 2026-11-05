@@ -47,3 +47,20 @@ if __name__ == "__main__":
         print("Uso: python test_scraper_manual.py \"laptop lenovo\"")
         sys.exit(1)
     main(" ".join(sys.argv[1:]))
+
+# api.py
+from flask import Flask, request, jsonify
+from src.scraping.price_scraper import buscar_precios
+
+app = Flask(__name__)
+
+@app.route('/buscar', methods=['POST'])
+def buscar():
+    data = request.get_json()
+    termino = data.get('termino', '')
+    resultado = buscar_precios(termino)
+    return jsonify(resultado)
+
+if __name__ == '__main__':
+    # host='0.0.0.0' es CRUCIAL para que otros contenedores puedan conectarse [citation:7]
+    app.run(host='0.0.0.0', port=5000)
