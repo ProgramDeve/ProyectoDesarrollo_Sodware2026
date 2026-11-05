@@ -303,7 +303,52 @@ def _scrapear_oechsle(termino: str) -> list[dict[str, Any]]:
 
     return resultados
 
+# ---------------------------------------------------------------------------
+# SCRAPER EXTRA: METRO (API VTEX — JSON directo)
+# ---------------------------------------------------------------------------
+def _scrapear_metro(termino: str) -> list[dict[str, Any]]:
+    """
+    Consulta Metro Perú vía API VTEX pública (JSON).
+    Mismo patrón que Plaza Vea, Coolbox y Oechsle.
+    """
+    url = f"https://www.metro.pe/api/catalog_system/pub/products/search?ft={quote(termino)}"
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+        if response.status_code not in (200, 206):
+            logger.warning("Metro status %d para '%s'", response.status_code, termino)
+            return []
+        data = response.json()
+    except (requests.RequestException, ValueError) as e:
+        logger.warning("Metro falló para '%s': %s", termino, e)
+        return []
 
+    if not isinstance(data, list):
+        return []
+
+    resultados: list[dict[str, Any]] = []
+    for item in data[:MAX_RESULTADOS_POR_TIENDA]:
+        try:
+            nombre = item.get("productName", "")
+            link_text = item.get("linkText", "")
+            producto_url = f"https://www.metro.pe/{link_text}/p" if link_text else ""
+
+            precio = None
+            items = item.get("items", [])
+            if items and isinstance(items, list):
+                sellers = items[0].get("sellers", [])
+                if sellers and isinstance(sellers, list):
+                    offer = sellers[0].get("commertialOffer", {})
+                    precio = offer.get("Price")
+
+            resultado = _construir_resultado("Metro", nombre, precio, "S/", producto_url)
+            if resultado:
+                resultados.append(resultado)
+        except Exception as e:
+            logger.debug("Error parseando item de Metro: %s", e)
+            continue
+
+    logger.info("Metro: %d resultados para '%s'", len(resultados), termino)
+    return resultados
 # ---------------------------------------------------------------------------
 # SCRAPER 5: HIRAOKA (HTML parsing)
 # ---------------------------------------------------------------------------
@@ -406,7 +451,14 @@ def buscar_precios(termino: str) -> dict[str, Any]:
         resultados.extend(_scrapear_hiraoka(termino))
     except Exception as e:
         errores.append(f"Hiraoka: {str(e)}")
+    time.sleep(DELAY_ENTRE_TIENDAS)
 
+    # --- Metro ---
+    try:
+        resultados.extend(_scrapear_metro(termino))
+    except Exception as e:
+        logger.exception("Error inesperado en Metro")
+        errores.append(f"Metro: {str(e)}")
     # Ordenar por precio ascendente
     resultados.sort(key=lambda r: r["precio"])
 
