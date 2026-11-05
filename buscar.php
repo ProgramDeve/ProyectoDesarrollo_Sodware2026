@@ -1,5 +1,5 @@
 <?php
-// buscar.php — Versión robusta que siempre devuelve JSON
+// buscar.php — Versión para Docker (se comunica con el microservicio de Python vía HTTP)
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 header('Content-Type: application/json; charset=utf-8');
@@ -10,6 +10,7 @@ function jsonError($msg, $detalle = null, $http = 200) {
     exit;
 }
 
+// 1. Validar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('Método no permitido. Usa POST.', null, 405);
 }
@@ -19,46 +20,46 @@ if ($termino === '') {
     jsonError('El término de búsqueda no puede estar vacío.');
 }
 
-// ⚠️ ASEGÚRATE DE QUE ESTAS RUTAS SEAN LAS CORRECTAS EN TU PC
-$pythonPath = 'C:\Users\JOTA\Downloads\visionprice\.venv\Scripts\python.exe';
-$scriptPath = 'C:\Users\JOTA\Downloads\visionprice\test_scraper_manual.py';
-
-if (!file_exists($pythonPath)) {
-    jsonError('No se encuentra el Python del venv.', 'Ruta: ' . $pythonPath);
-}
-if (!file_exists($scriptPath)) {
-    jsonError('No se encuentra el script de Python.', 'Ruta: ' . $scriptPath);
-}
-if (!function_exists('shell_exec')) {
-    jsonError('shell_exec está deshabilitado en php.ini.', 'Quita "shell_exec" de disable_functions');
+// 2. Validar que la extensión cURL esté disponible en PHP
+if (!function_exists('curl_init')) {
+    jsonError('La extensión cURL de PHP no está habilitada.');
 }
 
-putenv('PYTHONIOENCODING=UTF-8');
-putenv('PYTHONUTF8=1');
+// 3. Configurar la URL de la API de Python en Docker
+// IMPORTANTE: 'python-api' es el nombre del servicio que definiremos en docker-compose.yml.
+// Docker se encarga de traducir ese nombre a la IP interna del contenedor.
+$pythonApiUrl = 'http://python-api:5000/buscar';
 
-$cmd = escapeshellcmd($pythonPath) . ' ' . escapeshellcmd($scriptPath) . ' ' . escapeshellarg($termino) . ' 2>&1';
-$output = shell_exec($cmd);
+$payload = json_encode(['termino' => $termino]);
 
-if ($output === null) {
-    jsonError('shell_exec devolvió null.', 'Revisa permisos de Apache y disable_functions');
+// 4. Hacer la petición HTTP al contenedor de Python
+$ch = curl_init($pythonApiUrl);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 30); // El scraping de 5 tiendas puede tardar unos segundos
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
+curl_close($ch);
+
+// 5. Manejo de errores de red
+if ($response === false) {
+    jsonError('Error de conexión con el backend de Python.', $curlError);
 }
 
-// =========================================================================
-// AQUÍ ESTÁ LA MAGIA: Extraemos solo el JSON ignorando textos extra
-// =========================================================================
-$start = strpos($output, '{');
-$end = strrpos($output, '}');
-
-if ($start === false || $end === false || $start > $end) {
-    jsonError('Python no devolvió un JSON con formato válido.', $output);
+if ($httpCode !== 200) {
+    jsonError('El backend de Python devolvió un error HTTP.', "Código: $httpCode. Respuesta: $response");
 }
 
-$jsonStr = substr($output, $start, $end - $start + 1);
-$resultado = json_decode($jsonStr, true);
+// 6. Decodificar la respuesta JSON que viene de Python
+$resultado = json_decode($response, true);
 
 if ($resultado === null) {
-    jsonError('Error al decodificar el JSON extraído.', $jsonStr);
+    jsonError('El backend de Python no devolvió un JSON válido.', $response);
 }
 
-// Devolvemos el JSON limpio al index.php
+// 7. Devolver el JSON limpio al frontend (index.php)
 echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
