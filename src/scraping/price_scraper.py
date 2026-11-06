@@ -158,6 +158,8 @@ def _scrapear_tottus(termino: str) -> list[dict[str, Any]]:
 def _scrapear_wong(termino: str) -> list[dict[str, Any]]:
     return _scrapear_vtex("Wong", "wong.pe", termino)
 
+def _scrapear_vivanda(termino: str) -> list[dict[str, Any]]:
+    return _scrapear_vtex("Vivanda", "vivanda.com.pe", termino)
 # ---------------------------------------------------------------------------
 # SCRAPER: RIPLEY (JSON embebido __NEXT_DATA__)
 # ---------------------------------------------------------------------------
@@ -322,7 +324,12 @@ def buscar_precios(termino: str) -> dict[str, Any]:
     # 8. Wong
     try: resultados.extend(_scrapear_wong(termino))
     except Exception as e: errores.append(f"Wong: {str(e)}")
+    time.sleep(DELAY_ENTRE_TIENDAS)
 
+    # --- Vivanda ---
+    try: resultados.extend(_scrapear_vivanda(termino))
+    except Exception as e: errores.append(f"Vivanda: {str(e)}")
+    
     # Ordenar por precio ascendente
     resultados.sort(key=lambda r: r["precio"])
 
