@@ -351,9 +351,46 @@ class TestScrapearHiraokaRamas(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Test de integración: buscar_precios ordena por precio (5 tiendas mockeadas)
+# Tests de las tiendas nuevas (Metro, Tottus, Wong)
+# ---------------------------------------------------------------------------
+class TestScrapearMetro(unittest.TestCase):
+    @patch("src.scraping.price_scraper.requests.get")
+    def test_respuesta_valida(self, mock_get):
+        fake_json = [{"productName": "Metro Test", "linkText": "metro-test", "items": [{"sellers": [{"commertialOffer": {"Price": 100.0}}]}]}]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 206
+        mock_resp.json.return_value = fake_json
+        mock_get.return_value = mock_resp
+        self.assertEqual(len(ps._scrapear_metro("test")), 1)
+
+class TestScrapearTottus(unittest.TestCase):
+    @patch("src.scraping.price_scraper.requests.get")
+    def test_respuesta_valida(self, mock_get):
+        fake_json = [{"productName": "Tottus Test", "linkText": "tottus-test", "items": [{"sellers": [{"commertialOffer": {"Price": 200.0}}]}]}]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 206
+        mock_resp.json.return_value = fake_json
+        mock_get.return_value = mock_resp
+        self.assertEqual(len(ps._scrapear_tottus("test")), 1)
+
+class TestScrapearWong(unittest.TestCase):
+    @patch("src.scraping.price_scraper.requests.get")
+    def test_respuesta_valida(self, mock_get):
+        fake_json = [{"productName": "Wong Test", "linkText": "wong-test", "items": [{"sellers": [{"commertialOffer": {"Price": 300.0}}]}]}]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 206
+        mock_resp.json.return_value = fake_json
+        mock_get.return_value = mock_resp
+        self.assertEqual(len(ps._scrapear_wong("test")), 1)
+
+
+# ---------------------------------------------------------------------------
+# Test de integración: buscar_precios ordena por precio (8 tiendas mockeadas)
 # ---------------------------------------------------------------------------
 class TestBuscarPreciosIntegracion(unittest.TestCase):
+    @patch("src.scraping.price_scraper._scrapear_wong")
+    @patch("src.scraping.price_scraper._scrapear_tottus")
+    @patch("src.scraping.price_scraper._scrapear_metro")
     @patch("src.scraping.price_scraper._scrapear_hiraoka")
     @patch("src.scraping.price_scraper._scrapear_oechsle")
     @patch("src.scraping.price_scraper._scrapear_coolbox")
@@ -361,35 +398,31 @@ class TestBuscarPreciosIntegracion(unittest.TestCase):
     @patch("src.scraping.price_scraper._scrapear_plazavea")
     @patch("src.scraping.price_scraper.time.sleep")
     def test_ordenamiento_por_precio(
-        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk
+        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk, mock_metro, mock_tottus, mock_wong
     ):
-        mock_pv.return_value = [
-            {"tienda": "Plaza Vea", "titulo": "A", "precio": 500.0, "moneda": "S/", "url": ""}
-        ]
-        mock_rp.return_value = [
-            {"tienda": "Ripley", "titulo": "B", "precio": 300.0, "moneda": "S/", "url": ""}
-        ]
-        mock_cb.return_value = [
-            {"tienda": "Coolbox", "titulo": "C", "precio": 400.0, "moneda": "S/", "url": ""}
-        ]
-        mock_oe.return_value = [
-            {"tienda": "Oechsle", "titulo": "D", "precio": 200.0, "moneda": "S/", "url": ""}
-        ]
-        mock_hk.return_value = [
-            {"tienda": "Hiraoka", "titulo": "E", "precio": 100.0, "moneda": "S/", "url": ""}
-        ]
+        mock_pv.return_value = [{"tienda": "Plaza Vea", "titulo": "A", "precio": 800.0, "moneda": "S/", "url": ""}]
+        mock_rp.return_value = [{"tienda": "Ripley", "titulo": "B", "precio": 600.0, "moneda": "S/", "url": ""}]
+        mock_cb.return_value = [{"tienda": "Coolbox", "titulo": "C", "precio": 700.0, "moneda": "S/", "url": ""}]
+        mock_oe.return_value = [{"tienda": "Oechsle", "titulo": "D", "precio": 500.0, "moneda": "S/", "url": ""}]
+        mock_hk.return_value = [{"tienda": "Hiraoka", "titulo": "E", "precio": 400.0, "moneda": "S/", "url": ""}]
+        mock_metro.return_value = [{"tienda": "Metro", "titulo": "F", "precio": 300.0, "moneda": "S/", "url": ""}]
+        mock_tottus.return_value = [{"tienda": "Tottus", "titulo": "G", "precio": 200.0, "moneda": "S/", "url": ""}]
+        mock_wong.return_value = [{"tienda": "Wong", "titulo": "H", "precio": 100.0, "moneda": "S/", "url": ""}]
 
         r = ps.buscar_precios("test")
         self.assertTrue(r["exito"])
-        self.assertEqual(r["total"], 5)
+        self.assertEqual(r["total"], 8)
         precios = [x["precio"] for x in r["resultados"]]
-        self.assertEqual(precios, [100.0, 200.0, 300.0, 400.0, 500.0])
+        self.assertEqual(precios, [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0])
 
 
 # ---------------------------------------------------------------------------
 # Tests de excepciones: si una tienda falla, las demás siguen
 # ---------------------------------------------------------------------------
 class TestBuscarPreciosExcepciones(unittest.TestCase):
+    @patch("src.scraping.price_scraper._scrapear_wong")
+    @patch("src.scraping.price_scraper._scrapear_tottus")
+    @patch("src.scraping.price_scraper._scrapear_metro")
     @patch("src.scraping.price_scraper._scrapear_hiraoka")
     @patch("src.scraping.price_scraper._scrapear_oechsle")
     @patch("src.scraping.price_scraper._scrapear_coolbox")
@@ -397,19 +430,25 @@ class TestBuscarPreciosExcepciones(unittest.TestCase):
     @patch("src.scraping.price_scraper._scrapear_plazavea")
     @patch("src.scraping.price_scraper.time.sleep")
     def test_tiendas_lanzan_excepcion(
-        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk
+        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk, mock_metro, mock_tottus, mock_wong
     ):
         mock_pv.side_effect = RuntimeError("fallo PV")
         mock_rp.side_effect = RuntimeError("fallo RP")
         mock_cb.side_effect = RuntimeError("fallo CB")
         mock_oe.side_effect = RuntimeError("fallo OE")
         mock_hk.side_effect = RuntimeError("fallo HK")
+        mock_metro.side_effect = RuntimeError("fallo MET")
+        mock_tottus.side_effect = RuntimeError("fallo TOT")
+        mock_wong.side_effect = RuntimeError("fallo WON")
 
         r = ps.buscar_precios("test")
         self.assertFalse(r["exito"])
         self.assertEqual(r["total"], 0)
-        self.assertEqual(len(r["errores"]), 5)
+        self.assertEqual(len(r["errores"]), 8)
 
+    @patch("src.scraping.price_scraper._scrapear_wong")
+    @patch("src.scraping.price_scraper._scrapear_tottus")
+    @patch("src.scraping.price_scraper._scrapear_metro")
     @patch("src.scraping.price_scraper._scrapear_hiraoka")
     @patch("src.scraping.price_scraper._scrapear_oechsle")
     @patch("src.scraping.price_scraper._scrapear_coolbox")
@@ -417,17 +456,16 @@ class TestBuscarPreciosExcepciones(unittest.TestCase):
     @patch("src.scraping.price_scraper._scrapear_plazavea")
     @patch("src.scraping.price_scraper.time.sleep")
     def test_una_tienda_falla_otras_siguen(
-        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk
+        self, mock_sleep, mock_pv, mock_rp, mock_cb, mock_oe, mock_hk, mock_metro, mock_tottus, mock_wong
     ):
         mock_pv.side_effect = RuntimeError("fallo PV")
-        mock_rp.return_value = [
-            {"tienda": "Ripley", "titulo": "A", "precio": 100.0, "moneda": "S/", "url": ""}
-        ]
-        mock_cb.return_value = [
-            {"tienda": "Coolbox", "titulo": "B", "precio": 200.0, "moneda": "S/", "url": ""}
-        ]
+        mock_rp.return_value = [{"tienda": "Ripley", "titulo": "A", "precio": 100.0, "moneda": "S/", "url": ""}]
+        mock_cb.return_value = [{"tienda": "Coolbox", "titulo": "B", "precio": 200.0, "moneda": "S/", "url": ""}]
         mock_oe.return_value = []
         mock_hk.return_value = []
+        mock_metro.return_value = []
+        mock_tottus.return_value = []
+        mock_wong.return_value = []
 
         r = ps.buscar_precios("test")
         self.assertTrue(r["exito"])
