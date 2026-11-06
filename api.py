@@ -1,9 +1,10 @@
+# Constantes de configuración (UPPER_CASE para evitar magic numbers)
+PUERTO_API: int = 5000
+HOST_API: str = '0.0.0.0'
+DEBUG_MODE: bool = False
+
 from flask import Flask, request, jsonify
 from src.scraping.price_scraper import buscar_precios
-
-# Definimos constantes (UPPER_CASE) para evitar números mágicos
-PUERTO_API = 5000
-HOST_API = '0.0.0.0'
 
 app = Flask(__name__)
 
@@ -15,5 +16,5 @@ def buscar():
     return jsonify(resultado)
 
 if __name__ == '__main__':
-    # host='0.0.0.0' es OBLIGATORIO para que el contenedor de PHP pueda ver a Python
-    app.run(host=HOST_API, port=PUERTO_API)
+    # Inicia el servidor usando las constantes
+    app.run(host=HOST_API, port=PUERTO_API, debug=DEBUG_MODE)
